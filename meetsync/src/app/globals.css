@@ -531,3 +531,206 @@ body {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* ══════════════════════════════════════
+   Create Event Form
+   ══════════════════════════════════════ */
+.topbar__back {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  min-width: 80px;
+}
+.topbar__back:hover { opacity: 1; }
+
+.create-form {
+  background: var(--white);
+  border-radius: 20px;
+  border: 2px solid var(--border);
+  padding: 28px 28px 32px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border-top: 4px solid var(--yellow);
+}
+
+/* Form group */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+.form-required {
+  color: var(--danger);
+}
+
+/* Form field (input, select, textarea) */
+.form-field {
+  width: 100%;
+  padding: 11px 14px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--white);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+}
+.form-field:focus {
+  border-color: var(--yellow-dark);
+  box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.2);
+}
+.form-field--error {
+  border-color: #E08080;
+  box-shadow: 0 0 0 3px rgba(176, 48, 48, 0.1);
+}
+.form-field--textarea {
+  resize: vertical;
+  min-height: 88px;
+  line-height: 1.5;
+}
+
+/* select arrow */
+select.form-field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.form-error {
+  font-size: 11px;
+  color: var(--danger);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* Form row (date range / time range) */
+.form-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.form-row__item {
+  flex: 1;
+}
+.form-row__sep {
+  font-size: 16px;
+  color: var(--light-gray);
+  padding-top: 10px;
+  flex-shrink: 0;
+}
+
+/* Outline ink button */
+.btn-outline-ink {
+  background: var(--white);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s;
+  width: 100%;
+}
+.btn-outline-ink:hover {
+  background: var(--ink);
+  color: var(--white);
+}
+
+/* ── Success screen ── */
+.create-success {
+  width: 100%;
+  max-width: 460px;
+  background: var(--white);
+  border-radius: 20px;
+  border: 2px solid var(--border);
+  border-top: 4px solid var(--yellow);
+  padding: 36px 28px 32px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+
+.create-success__emoji {
+  font-size: 56px;
+  display: block;
+  margin-bottom: 12px;
+  animation: bounce 1.4s ease-in-out infinite alternate;
+}
+
+.create-success__title {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.create-success__sub {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 20px;
+}
+
+.create-success__link-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--yellow-light);
+  border: 2px solid var(--yellow-mid);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.create-success__link-text {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--yellow-deep);
+  word-break: break-all;
+}
+
+.create-success__copy-btn {
+  background: var(--yellow);
+  border: 2px solid var(--yellow-dark);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.create-success__copy-btn:hover {
+  background: var(--yellow-dark);
+}
+
+.create-success__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
