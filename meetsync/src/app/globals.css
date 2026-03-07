@@ -1,26 +1,275 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;600;800&display=swap');
+/* @tailwind base;
+@tailwind components;
+@tailwind utilities; */
 
+/* ── CSS Variables ── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --yellow:       #F5C518;
+  --yellow-dark:  #C9A000;
+  --yellow-deep:  #A07800;
+  --yellow-light: #FFFAE8;
+  --yellow-mid:   #FFE066;
+  --ink:          #1C1C1C;
+  --charcoal:     #2D2D2D;
+  --light-gray:   #C8C8C8;
+  --off-white:    #F7F7F5;
+  --white:        #FFFFFF;
+  --bg:           #F0EFE8;
+  --border:       #E0DDD0;
+  --success:      #3D7A3D;
+  --danger:       #B03030;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Noto Sans Thai', 'DM Sans', sans-serif;
+  background: var(--bg);
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounce {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-8px); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shake {
+  0%,  100% { transform: translateX(0); }
+  20%, 60%  { transform: translateX(-5px); }
+  40%, 80%  { transform: translateX(5px); }
+}
+
+/* ── Animation utility classes ── */
+.fade-up { animation: fadeUp 0.5s ease both; }
+.d1 { animation-delay: 0.08s; }
+.d2 { animation-delay: 0.16s; }
+.d3 { animation-delay: 0.24s; }
+.d4 { animation-delay: 0.32s; }
+.d5 { animation-delay: 0.40s; }
+
+.bounce-emoji {
+  animation: bounce 1.4s ease-in-out infinite alternate;
+  display: inline-block;
+}
+
+.shake { animation: shake 0.35s ease; }
+
+/* ── Spinner ── */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(0, 0, 0, 0.15);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── Buttons ── */
+.btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.15s ease;
+  border: 2px solid transparent;
+}
+
+.btn:disabled         { opacity: 0.6; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+
+.btn-google {
+  background: var(--white);
+  color: var(--ink);
+  border-color: var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.btn-google:hover:not(:disabled) {
+  border-color: #aaa;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.btn-guest {
+  background: var(--white);
+  color: var(--ink);
+  border-color: var(--border);
+  font-size: 14px;
+  padding: 12px 14px;
+}
+.btn-guest:hover:not(:disabled) { border-color: var(--ink); }
+
+.btn-yellow {
+  background: var(--yellow);
+  color: var(--ink);
+  border-color: var(--yellow-dark);
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 3px 3px 0 var(--yellow-dark);
+}
+.btn-yellow:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--yellow-deep);
+}
+
+/* ── Form inputs ── */
+.text-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--yellow-dark);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--white);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.2);
+  transition: box-shadow 0.15s;
+  margin-bottom: 10px;
+}
+.text-input:focus { box-shadow: 0 0 0 4px rgba(245, 197, 24, 0.35); }
+
+/* ══════════════════════════════════════
+   Login Page
+   ══════════════════════════════════════ */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--white);
+  border-radius: 24px;
+  border: 2px solid var(--border);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.10);
+  overflow: hidden;
+}
+
+.login-card__accent {
+  height: 6px;
+  background: var(--yellow);
+}
+
+.login-card__body {
+  padding: 36px 32px 32px;
+}
+
+/* Hero */
+.login-hero {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-hero__label {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--yellow-deep);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.login-hero__emoji {
+  font-size: 52px;
+}
+
+.login-hero__title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-top: 12px;
+  line-height: 1.3;
+}
+
+.login-hero__highlight {
+  color: var(--yellow-deep);
+}
+
+.login-hero__sub {
+  font-size: 13px;
+  color: #888;
+  margin-top: 6px;
+}
+
+/* Error */
+.login-error {
+  background: #FFF0F0;
+  border: 2px solid #F0A0A0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #B03030;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Google icon */
+.login-google-icon {
+  font-size: 18px;
+  font-weight: 900;
+  color: #4285F4;
+}
+
+/* Divider */
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 12px;
+  color: var(--light-gray);
+  font-size: 12px;
+}
+
+.login-divider__line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Guest section */
+.login-guest {
+  margin-bottom: 20px;
+}
+
+/* Separator */
+.login-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 0 0 20px;
+}
+
+/* Terms */
+.login-terms {
+  font-size: 11px;
+  color: var(--light-gray);
+  text-align: center;
+  margin-top: 16px;
 }
