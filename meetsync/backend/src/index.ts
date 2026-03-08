@@ -14,6 +14,61 @@ function jsonWithCors(data: unknown, init?: ResponseInit) {
   });
 }
 
+type Slot = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
+
+type AvailabilityDoc = {
+  userId: string;
+  slots: Slot[];
+};
+
+function timeToMinutes(time: string) {
+  const parts = time.split(":");
+
+  if (parts.length !== 2) {
+    throw new Error(`Invalid time format: ${time}`);
+  }
+
+  const h = Number(parts[0]);
+  const m = Number(parts[1]);
+
+  if (Number.isNaN(h) || Number.isNaN(m)) {
+    throw new Error(`Invalid time value: ${time}`);
+  }
+
+  return h * 60 + m;
+}
+
+function minutesToTime(minutes: number) {
+  const h = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const m = String(minutes % 60).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function calculateOverlap(availabilities: AvailabilityDoc[]) {
+  const map = new Map<string, number>();
+
+  for (const entry of availabilities) {
+    for (const slot of entry.slots) {
+      const start = timeToMinutes(slot.startTime);
+      const end = timeToMinutes(slot.endTime);
+
+      for (let t = start; t < end; t += 15) {
+        const key = `${slot.date}_${minutesToTime(t)}`;
+        map.set(key, (map.get(key) ?? 0) + 1);
+      }
+    }
+  }
+
+  return Array.from(map.entries()).map(([key, count]) => {
+    const [date, time] = key.split("_");
+    return { date, time, count };
+  });
+}
+
 const server = serve({
   port: Number(process.env.PORT) || 3000,
 
@@ -205,6 +260,81 @@ const server = serve({
       },
     },
 
+    "/api/availability": {
+      async OPTIONS() {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin": "http://localhost:5173",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+          },
+        });
+      },
+
+      async POST(req) {
+        try {
+          const user = await getUserFromRequest(req);
+          const body = await req.json();
+
+          const eventId = body?.eventId;
+          const slots = body?.slots as Slot[];
+
+          if (!eventId) {
+            return jsonWithCors(
+              { ok: false, message: "eventId is required" },
+              { status: 400 }
+            );
+          }
+
+          if (!Array.isArray(slots) || slots.length === 0) {
+            return jsonWithCors(
+              { ok: false, message: "slots must be a non-empty array" },
+              { status: 400 }
+            );
+          }
+
+          const eventDoc = await db.collection("events").doc(eventId).get();
+          if (!eventDoc.exists) {
+            return jsonWithCors(
+              { ok: false, message: "Event not found" },
+              { status: 404 }
+            );
+          }
+
+          const ref = db.collection("availability").doc();
+
+          await ref.set({
+            availId: ref.id,
+            eventId,
+            userId: user.uid,
+            userName: user.name,
+            userEmail: user.email,
+            slots,
+            submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          return jsonWithCors({
+            ok: true,
+            message: "Availability submitted",
+            availabilityId: ref.id,
+          });
+        } catch (error) {
+          console.error("submitAvailability error:", error);
+
+          return jsonWithCors(
+            {
+              ok: false,
+              message: "Failed to submit availability",
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+            { status: 500 }
+          );
+        }
+      },
+    },
+
     "/api/events/:id": {
       async GET(req: Request & { params: { id: string } }) {
         try {
@@ -227,6 +357,36 @@ const server = serve({
             {
               ok: false,
               message: "Failed to fetch event",
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+            { status: 500 }
+          );
+        }
+      },
+    },
+
+    "/api/events/:id/overlap": {
+      async GET(req: Request & { params: { id: string } }) {
+        try {
+          const eventId = req.params.id;
+
+          const snapshot = await db
+            .collection("availability")
+            .where("eventId", "==", eventId)
+            .get();
+
+          const availabilities = snapshot.docs.map((doc) => doc.data()) as AvailabilityDoc[];
+          const overlap = calculateOverlap(availabilities);
+
+          return jsonWithCors({
+            ok: true,
+            overlap,
+          });
+        } catch (error) {
+          return jsonWithCors(
+            {
+              ok: false,
+              message: "Failed to calculate overlap",
               error: error instanceof Error ? error.message : "Unknown error",
             },
             { status: 500 }
