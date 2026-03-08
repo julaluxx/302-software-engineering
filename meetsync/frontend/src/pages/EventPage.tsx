@@ -3,6 +3,7 @@ import { signInWithPopup } from "firebase/auth";
 import { useParams } from "react-router-dom";
 import { auth, provider } from "../firebase";
 import HeatmapGrid from "../components/HeatmapGrid";
+import AvailabilityPicker from "../components/AvailabilityPicker";
 import {
     finalizeEvent,
     getEvent,
@@ -18,11 +19,6 @@ import type {
     UserInfo,
 } from "../types";
 
-function toMinutes(time: string) {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-}
-
 export default function EventPage() {
     const { id } = useParams();
 
@@ -30,11 +26,6 @@ export default function EventPage() {
     const [token, setToken] = useState("");
     const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
     const [overlap, setOverlap] = useState<OverlapItem[]>([]);
-
-    const [date, setDate] = useState("");
-    const [startTime, setStartTime] = useState("");
-    const [endTime, setEndTime] = useState("");
-
     const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
     const [selectedFinalizeSlot, setSelectedFinalizeSlot] =
         useState<FinalizedSlot | null>(null);
@@ -62,52 +53,11 @@ export default function EventPage() {
 
             setToken(idToken);
             setUserInfo(data.user);
-            alert("login success");
+            alert("เข้าสู่ระบบสำเร็จ");
         } catch (error) {
             console.error(error);
-            alert("login failed");
+            alert("เข้าสู่ระบบไม่สำเร็จ");
         }
-    };
-
-    const handleAddSlot = () => {
-        if (!event) return;
-
-        if (!date || !startTime || !endTime) {
-            alert("กรุณาเลือกวันและเวลาให้ครบ");
-            return;
-        }
-
-        if (toMinutes(startTime) >= toMinutes(endTime)) {
-            alert("เวลาเริ่มต้องน้อยกว่าเวลาจบ");
-            return;
-        }
-
-        if (date < event.dateRange.start || date > event.dateRange.end) {
-            alert("วันที่ต้องอยู่ในช่วงวันของ event");
-            return;
-        }
-
-        if (
-            toMinutes(startTime) < toMinutes(event.timeRange.start) ||
-            toMinutes(endTime) > toMinutes(event.timeRange.end)
-        ) {
-            alert("เวลาที่เลือกต้องอยู่ในช่วงเวลาของ event");
-            return;
-        }
-
-        const newSlot: AvailabilitySlot = {
-            date,
-            startTime,
-            endTime,
-        };
-
-        setSlots((prev) => [...prev, newSlot]);
-        setStartTime("");
-        setEndTime("");
-    };
-
-    const handleRemoveSlot = (indexToRemove: number) => {
-        setSlots((prev) => prev.filter((_, index) => index !== indexToRemove));
     };
 
     const handleSubmitAvailability = async () => {
@@ -123,7 +73,7 @@ export default function EventPage() {
             }
 
             if (slots.length === 0) {
-                alert("กรุณาเพิ่มช่วงเวลาว่างอย่างน้อย 1 ช่วง");
+                alert("กรุณาเลือกเวลาว่างอย่างน้อย 1 ช่วง");
                 return;
             }
 
@@ -173,7 +123,11 @@ export default function EventPage() {
     };
 
     if (!event) {
-        return <div className="container" style={{ padding: 24 }}>Loading event...</div>;
+        return (
+            <div className="container" style={{ padding: 24 }}>
+                Loading event...
+            </div>
+        );
     }
 
     const isHost = !!userInfo && !!event.hostId && userInfo.uid === event.hostId;
@@ -200,13 +154,13 @@ export default function EventPage() {
             <main className="container">
                 <section className="hero">
                     <div className="glass-card hero-main">
-                        <div className="eyebrow">🗓️ Group Meeting Scheduler</div>
+                        <div className="eyebrow">🗓️ Smart Group Scheduling</div>
 
                         <h1 className="page-title">{event.title}</h1>
 
                         <p className="subtitle">
-                            ผู้ใช้ต้องลงเวลาว่างผ่านอินเทอร์เฟซปฏิทิน และระบบต้องแสดง Heatmap
-                            ภาพรวมเพื่อช่วยให้ host เลือกเวลาที่เหมาะสมที่สุด
+                            เลือกเวลาว่างของคุณด้วยการลากบนตารางเวลา แล้วให้ระบบสรุปภาพรวมออกมาเป็น
+                            Heatmap เพื่อช่วยให้ Host ตัดสินใจได้เร็วขึ้น
                         </p>
 
                         <div className="stats">
@@ -215,8 +169,10 @@ export default function EventPage() {
                                 <span className="muted">วันเริ่มต้น</span>
                             </div>
                             <div className="stat">
-                                <strong>{event.timeRange.start} - {event.timeRange.end}</strong>
-                                <span className="muted">ช่วงเวลา</span>
+                                <strong>
+                                    {event.timeRange.start} - {event.timeRange.end}
+                                </strong>
+                                <span className="muted">ช่วงเวลาที่เปิดให้เลือก</span>
                             </div>
                             <div className="stat">
                                 <strong>{event.location}</strong>
@@ -227,20 +183,18 @@ export default function EventPage() {
 
                     <div className="glass-card hero-side">
                         <div className="mini-panel">
-                            <h3>การใช้งาน</h3>
-                            <p>Guest เข้าลิงก์เพื่อเพิ่มเวลาว่าง ส่วน Host สามารถดู heatmap และ finalize ได้</p>
+                            <h3>วิธีใช้งาน</h3>
+                            <p>เข้าสู่ระบบ แล้วลากบน grid เพื่อเลือกช่วงเวลาว่างของคุณได้ทันที</p>
                         </div>
 
                         <div className="mini-panel">
-                            <h3>Heatmap</h3>
-                            <p>
-                                ระบบแสดงภาพรวมเวลาว่างของกลุ่มแบบสีเข้ม-อ่อนเพื่อช่วยตัดสินใจ
-                            </p>
+                            <h3>สำหรับ Host</h3>
+                            <p>Host สามารถเปิด heatmap ดูช่วงที่คนว่างตรงกันมากที่สุด และ finalize ได้</p>
                         </div>
 
                         <div className="mini-panel">
-                            <h3>สิทธิ์ของ Host</h3>
-                            <p>เฉพาะ host เท่านั้นที่กด Finalize เวลานัดหมายสุดท้ายได้</p>
+                            <h3>สำหรับ Guest</h3>
+                            <p>Guest ไม่ต้องพิมพ์เวลาเองอีกต่อไป แค่ลากเลือกบนตารางเหมือนแอพจริง</p>
                         </div>
                     </div>
                 </section>
@@ -252,7 +206,8 @@ export default function EventPage() {
                             <strong>วันที่:</strong> {event.finalizedSlot.date}
                         </p>
                         <p>
-                            <strong>เวลา:</strong> {event.finalizedSlot.startTime} - {event.finalizedSlot.endTime}
+                            <strong>เวลา:</strong> {event.finalizedSlot.startTime} -{" "}
+                            {event.finalizedSlot.endTime}
                         </p>
                         <p>
                             <strong>สถานะ:</strong> finalized
@@ -263,16 +218,19 @@ export default function EventPage() {
                 <section className="cards-2 page-section">
                     <article className="form-card">
                         <div className="page-header">
-                            <h2>เข้าร่วมและลงเวลาว่าง</h2>
+                            <h2>ลงเวลาว่าง</h2>
                             <p>
-                                เพิ่มช่วงเวลาว่างได้หลายช่วง และระบบจะนำไปคำนวณ overlap
-                                เป็นช่วงละ 15 นาทีตาม logic ที่คุณออกแบบไว้ก่อนหน้า
+                                เลือกเวลาว่างด้วยการ drag บนตาราง ระบบจะรวม cell ต่อเนื่องให้เป็นช่วงเวลาอัตโนมัติ
                             </p>
                         </div>
 
                         <div className="hero-actions">
                             <button className="btn btn-primary" onClick={handleLogin}>
                                 Guest Login with Google
+                            </button>
+
+                            <button className="btn btn-dark" onClick={handleSubmitAvailability}>
+                                Submit Availability
                             </button>
                         </div>
 
@@ -283,93 +241,16 @@ export default function EventPage() {
                         )}
 
                         {!isFinalized && (
-                            <>
-                                <div className="form-stack" style={{ marginTop: 18 }}>
-                                    <div>
-                                        <label className="label">Date</label>
-                                        <input
-                                            className="input"
-                                            type="date"
-                                            value={date}
-                                            min={event.dateRange.start}
-                                            max={event.dateRange.end}
-                                            onChange={(e) => setDate(e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div className="form-grid">
-                                        <div>
-                                            <label className="label">Start Time</label>
-                                            <input
-                                                className="input"
-                                                type="time"
-                                                value={startTime}
-                                                min={event.timeRange.start}
-                                                max={event.timeRange.end}
-                                                onChange={(e) => setStartTime(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="label">End Time</label>
-                                            <input
-                                                className="input"
-                                                type="time"
-                                                value={endTime}
-                                                min={event.timeRange.start}
-                                                max={event.timeRange.end}
-                                                onChange={(e) => setEndTime(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="hero-actions" style={{ marginTop: 0 }}>
-                                        <button className="btn btn-secondary" onClick={handleAddSlot}>
-                                            Add Time Slot
-                                        </button>
-                                        <button className="btn btn-dark" onClick={handleSubmitAvailability}>
-                                            Submit Availability
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: 20 }}>
-                                    <h3>ช่วงเวลาที่เลือก</h3>
-
-                                    {slots.length === 0 ? (
-                                        <p className="muted">ยังไม่มีช่วงเวลาที่เพิ่ม</p>
-                                    ) : (
-                                        <div className="slot-list">
-                                            {slots.map((slot, index) => (
-                                                <div
-                                                    key={`${slot.date}-${slot.startTime}-${slot.endTime}-${index}`}
-                                                    className="slot-item"
-                                                >
-                                                    <div>
-                                                        <strong>{slot.date}</strong> | {slot.startTime} - {slot.endTime}
-                                                    </div>
-                                                    <button
-                                                        className="btn btn-secondary"
-                                                        onClick={() => handleRemoveSlot(index)}
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </>
+                            <div style={{ marginTop: 20 }}>
+                                <AvailabilityPicker event={event} onSlotsChange={setSlots} />
+                            </div>
                         )}
                     </article>
 
                     <article className="heatmap-card">
                         <div className="page-header">
                             <h2>Availability Overview</h2>
-                            <p>
-                                หน้าสรุปมี heatmap, สมาชิก, ช่วงเวลาที่แนะนำ และ action card
-                                ตามแนวทางในต้นแบบ HTML ของคุณ
-                            </p>
+                            <p>โหลดข้อมูล overlap เพื่อดูภาพรวมว่าช่วงเวลาใดมีคนว่างตรงกันมากที่สุด</p>
                         </div>
 
                         <div className="heatmap-actions">
@@ -387,10 +268,18 @@ export default function EventPage() {
                         />
 
                         <div className="legend">
-                            <span><i className="legend-1" /> น้อย</span>
-                            <span><i className="legend-2" /> ปานกลาง</span>
-                            <span><i className="legend-3" /> มาก</span>
-                            <span><i className="legend-4" /> มากที่สุด</span>
+                            <span>
+                                <i className="legend-1" /> น้อย
+                            </span>
+                            <span>
+                                <i className="legend-2" /> ปานกลาง
+                            </span>
+                            <span>
+                                <i className="legend-3" /> มาก
+                            </span>
+                            <span>
+                                <i className="legend-4" /> มากที่สุด
+                            </span>
                         </div>
 
                         {isHost && !isFinalized && (
@@ -403,7 +292,8 @@ export default function EventPage() {
                                             <strong>วันที่:</strong> {selectedFinalizeSlot.date}
                                         </p>
                                         <p>
-                                            <strong>เวลา:</strong> {selectedFinalizeSlot.startTime} - {selectedFinalizeSlot.endTime}
+                                            <strong>เวลา:</strong> {selectedFinalizeSlot.startTime} -{" "}
+                                            {selectedFinalizeSlot.endTime}
                                         </p>
                                     </div>
                                 ) : (
@@ -421,7 +311,7 @@ export default function EventPage() {
                 </section>
 
                 <div className="footer-note">
-                    MeetSync Event Page — Cozy yellow dashboard
+                    MeetSync Event Page — Drag to select availability
                 </div>
             </main>
         </div>

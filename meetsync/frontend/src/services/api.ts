@@ -120,3 +120,18 @@ export async function finalizeEvent(
 
     return parseJson(res);
 }
+
+export async function getMyEvents(token: string): Promise<{
+    ok: true;
+    events: EventData[];
+}> {
+    const res = await fetch(`${API_BASE}/events`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    return parseJson(res);
+}

@@ -187,9 +187,39 @@ const server = serve({
           headers: {
             "Access-Control-Allow-Origin": "http://localhost:5173",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           },
         });
+      },
+
+      async GET(req) {
+        try {
+          const user = await getUserFromRequest(req);
+          
+          const snapshot = await db
+            .collection("events")
+            .where("hostId", "==", user.uid)
+            .orderBy("createdAt", "desc")
+            .get();
+
+          const events = snapshot.docs.map((doc) => doc.data());
+
+          return jsonWithCors({
+            ok: true,
+            events,
+          });
+        } catch (error) {
+          console.error("GET /api/events error:", error);
+
+          return jsonWithCors(
+            {
+              ok: false,
+              message: "Failed to fetch events",
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+            { status: 500 }
+          );
+        }
       },
 
       async POST(req) {
