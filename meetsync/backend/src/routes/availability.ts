@@ -7,9 +7,7 @@ type Slot = {
     endTime: string;
 };
 
-type JsonResponseInit = ResponseInit | undefined;
-
-function jsonWithCors(data: unknown, init?: JsonResponseInit) {
+function jsonWithCors(data: unknown, init?: ResponseInit) {
     return new Response(JSON.stringify(data), {
         status: init?.status ?? 200,
         headers: {

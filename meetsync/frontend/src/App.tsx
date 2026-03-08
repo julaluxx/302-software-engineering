@@ -2,9 +2,35 @@ import { useState } from "react";
 import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "./firebase";
 
+type UserInfo = {
+  uid: string;
+  name: string;
+  email: string;
+};
+
+type CreatedEvent = {
+  eventId: string;
+  title: string;
+  hostId: string;
+  hostName: string;
+  hostEmail: string;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  timeRange: {
+    start: string;
+    end: string;
+  };
+  location: string;
+  status: string;
+  shareLink: string;
+};
+
 export default function App() {
   const [token, setToken] = useState("");
-  const [userInfo, setUserInfo] = useState<any>(null);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [createdEvent, setCreatedEvent] = useState<CreatedEvent | null>(null);
 
   const handleLogin = async () => {
     try {
@@ -46,7 +72,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: "ประชุมโปรเจกต์ MeetSync",
@@ -64,6 +90,11 @@ export default function App() {
 
       const data = await res.json();
       console.log("create event response:", data);
+
+      if (data.ok) {
+        setCreatedEvent(data.event);
+      }
+
       alert(JSON.stringify(data, null, 2));
     } catch (error) {
       console.error(error);
@@ -85,6 +116,21 @@ export default function App() {
         <pre style={{ marginTop: 16 }}>
           {JSON.stringify(userInfo, null, 2)}
         </pre>
+      )}
+
+      {createdEvent && (
+        <div style={{ marginTop: 16 }}>
+          <h3>Event created</h3>
+          <p>
+            <strong>Event ID:</strong> {createdEvent.eventId}
+          </p>
+          <p>
+            <strong>Share link:</strong>
+          </p>
+          <a href={createdEvent.shareLink} target="_blank" rel="noreferrer">
+            {createdEvent.shareLink}
+          </a>
+        </div>
       )}
     </div>
   );

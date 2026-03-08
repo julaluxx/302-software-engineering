@@ -1,9 +1,7 @@
 import { db, admin } from "../db/firestore";
 import { getUserFromRequest } from "../middleware/auth";
 
-type JsonResponseInit = ResponseInit | undefined;
-
-function jsonWithCors(data: unknown, init?: JsonResponseInit) {
+function jsonWithCors(data: unknown, init?: ResponseInit) {
     return new Response(JSON.stringify(data), {
         status: init?.status ?? 200,
         headers: {
@@ -92,22 +90,12 @@ export async function createEvent(req: Request) {
     }
 }
 
-export async function getEventById(eventId: string) {
-    const doc = await db.collection("events").doc(eventId).get();
-
-    if (!doc.exists) {
-        return null;
-    }
-
-    return doc.data();
-}
-
 export async function handleGetEvent(req: Request & { params: { id: string } }) {
     try {
         const eventId = req.params.id;
-        const event = await getEventById(eventId);
+        const doc = await db.collection("events").doc(eventId).get();
 
-        if (!event) {
+        if (!doc.exists) {
             return jsonWithCors(
                 { ok: false, message: "Event not found" },
                 { status: 404 }
@@ -116,7 +104,7 @@ export async function handleGetEvent(req: Request & { params: { id: string } }) 
 
         return jsonWithCors({
             ok: true,
-            event,
+            event: doc.data(),
         });
     } catch (error) {
         return jsonWithCors(

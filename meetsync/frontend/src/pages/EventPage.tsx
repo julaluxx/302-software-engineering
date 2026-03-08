@@ -16,12 +16,28 @@ type EventData = {
     };
 };
 
+type UserInfo = {
+    uid: string;
+    name: string;
+    email: string;
+};
+
+type OverlapItem = {
+    date: string;
+    time: string;
+    count: number;
+};
+
 export default function EventPage() {
     const { id } = useParams();
     const [event, setEvent] = useState<EventData | null>(null);
     const [token, setToken] = useState("");
-    const [userInfo, setUserInfo] = useState<any>(null);
-    const [overlap, setOverlap] = useState<any[]>([]);
+    const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+    const [overlap, setOverlap] = useState<OverlapItem[]>([]);
+
+    const [date, setDate] = useState("");
+    const [startTime, setStartTime] = useState("");
+    const [endTime, setEndTime] = useState("");
 
     useEffect(() => {
         async function loadEvent() {
@@ -78,24 +94,24 @@ export default function EventPage() {
                 return;
             }
 
+            if (!date || !startTime || !endTime) {
+                alert("กรุณาเลือกวันและเวลาให้ครบ");
+                return;
+            }
+
             const res = await fetch("http://localhost:3000/api/availability", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`,
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     eventId: id,
                     slots: [
                         {
-                            date: event.dateRange.start,
-                            startTime: "10:00",
-                            endTime: "12:00",
-                        },
-                        {
-                            date: event.dateRange.start,
-                            startTime: "14:00",
-                            endTime: "16:00",
+                            date: date,
+                            startTime: startTime,
+                            endTime: endTime,
                         },
                     ],
                 }),
@@ -132,13 +148,48 @@ export default function EventPage() {
     return (
         <div style={{ padding: 24 }}>
             <h1>{event.title}</h1>
-            <p>วันที่: {event.dateRange.start} - {event.dateRange.end}</p>
-            <p>เวลา: {event.timeRange.start} - {event.timeRange.end}</p>
+            <p>
+                วันที่: {event.dateRange.start} - {event.dateRange.end}
+            </p>
+            <p>
+                เวลา: {event.timeRange.start} - {event.timeRange.end}
+            </p>
             <p>สถานที่: {event.location}</p>
 
             <hr />
 
             <button onClick={handleLogin}>Guest Login with Google</button>
+
+            <div style={{ marginTop: 20 }}>
+                <h3>Select your availability</h3>
+
+                <div style={{ marginTop: 8 }}>
+                    <label>Date: </label>
+                    <input
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                    />
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                    <label>Start Time: </label>
+                    <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                    />
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                    <label>End Time: </label>
+                    <input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                    />
+                </div>
+            </div>
 
             <div style={{ marginTop: 12 }}>
                 <button onClick={handleSubmitAvailability}>Submit Availability</button>
