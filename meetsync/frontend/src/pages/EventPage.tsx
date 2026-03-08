@@ -3,9 +3,19 @@ import { useParams } from "react-router-dom";
 import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "../firebase";
 
+type FinalizedSlot = {
+    date: string;
+    startTime: string;
+    endTime: string;
+};
+
 type EventData = {
     title: string;
     location: string;
+    hostId?: string;
+    hostName?: string;
+    hostEmail?: string;
+    status?: string;
     dateRange: {
         start: string;
         end: string;
@@ -14,6 +24,7 @@ type EventData = {
         start: string;
         end: string;
     };
+    finalizedSlot?: FinalizedSlot;
 };
 
 type UserInfo = {
@@ -39,7 +50,14 @@ function toMinutes(time: string) {
     return h * 60 + m;
 }
 
-function getCellStyle(count: number) {
+function addMinutes(time: string, minutes: number) {
+    const total = toMinutes(time) + minutes;
+    const h = String(Math.floor(total / 60)).padStart(2, "0");
+    const m = String(total % 60).padStart(2, "0");
+    return `${h}:${m}`;
+}
+
+function getCellStyle(count: number, selected: boolean) {
     let background = "#f3f4f6";
 
     if (count === 1) background = "#dbeafe";
@@ -48,15 +66,16 @@ function getCellStyle(count: number) {
     if (count >= 4) background = "#2563eb";
 
     return {
-        background,
-        color: count >= 3 ? "#ffffff" : "#111827",
-        border: "1px solid #e5e7eb",
+        background: selected ? "#111827" : background,
+        color: selected || count >= 3 ? "#ffffff" : "#111827",
+        border: selected ? "2px solid #f59e0b" : "1px solid #e5e7eb",
         padding: "8px 10px",
         textAlign: "center" as const,
         borderRadius: 6,
         minWidth: 88,
         fontSize: 14,
         fontWeight: 600,
+        cursor: "pointer",
     };
 }
 
@@ -73,24 +92,26 @@ export default function EventPage() {
     const [endTime, setEndTime] = useState("");
 
     const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+    const [selectedFinalizeSlot, setSelectedFinalizeSlot] =
+        useState<FinalizedSlot | null>(null);
+
+    const loadEvent = async () => {
+        try {
+            const res = await fetch(`http://localhost:3000/api/events/${id}`);
+            const data = await res.json();
+
+            if (data.ok) {
+                setEvent(data.event);
+            } else {
+                alert(data.message || "โหลด event ไม่สำเร็จ");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("โหลด event ไม่สำเร็จ");
+        }
+    };
 
     useEffect(() => {
-        async function loadEvent() {
-            try {
-                const res = await fetch(`http://localhost:3000/api/events/${id}`);
-                const data = await res.json();
-
-                if (data.ok) {
-                    setEvent(data.event);
-                } else {
-                    alert(data.message || "โหลด event ไม่สำเร็จ");
-                }
-            } catch (error) {
-                console.error(error);
-                alert("โหลด event ไม่สำเร็จ");
-            }
-        }
-
         loadEvent();
     }, [id]);
 
@@ -155,7 +176,6 @@ export default function EventPage() {
         };
 
         setSlots((prev) => [...prev, newSlot]);
-
         setStartTime("");
         setEndTime("");
     };
@@ -222,6 +242,41 @@ export default function EventPage() {
         }
     };
 
+    const handleFinalize = async () => {
+        try {
+            if (!token) {
+                alert("กรุณา login ก่อน");
+                return;
+            }
+
+            if (!selectedFinalizeSlot) {
+                alert("กรุณาเลือกช่วงเวลาจาก Heatmap ก่อน");
+                return;
+            }
+
+            const res = await fetch(`http://localhost:3000/api/events/${id}/finalize`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(selectedFinalizeSlot),
+            });
+
+            const data = await res.json();
+
+            if (data.ok) {
+                alert("Finalize สำเร็จ");
+                setEvent(data.event);
+            } else {
+                alert(data.message || "finalize failed");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("finalize failed");
+        }
+    };
+
     const groupedOverlap = useMemo(() => {
         const grouped: Record<string, OverlapItem[]> = {};
 
@@ -238,6 +293,9 @@ export default function EventPage() {
 
         return grouped;
     }, [overlap]);
+
+    const isHost = !!userInfo && !!event?.hostId && userInfo.uid === event.hostId;
+    const isFinalized = event?.status === "finalized";
 
     if (!event) {
         return <div style={{ padding: 24 }}>Loading event...</div>;
@@ -259,6 +317,29 @@ export default function EventPage() {
                 <strong>สถานที่:</strong> {event.location}
             </p>
 
+            {isFinalized && event.finalizedSlot && (
+                <div
+                    style={{
+                        marginTop: 16,
+                        padding: 16,
+                        background: "#dcfce7",
+                        border: "1px solid #86efac",
+                        borderRadius: 12,
+                    }}
+                >
+                    <h3 style={{ marginTop: 0 }}>เวลานัดหมายที่ยืนยันแล้ว</h3>
+                    <p>
+                        <strong>วันที่:</strong> {event.finalizedSlot.date}
+                    </p>
+                    <p>
+                        <strong>เวลา:</strong> {event.finalizedSlot.startTime} - {event.finalizedSlot.endTime}
+                    </p>
+                    <p>
+                        <strong>สถานะ:</strong> finalized
+                    </p>
+                </div>
+            )}
+
             <hr style={{ margin: "20px 0" }} />
 
             <button onClick={handleLogin}>Guest Login with Google</button>
@@ -278,91 +359,93 @@ export default function EventPage() {
                 </pre>
             )}
 
-            <div
-                style={{
-                    marginTop: 24,
-                    padding: 16,
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    background: "#ffffff",
-                }}
-            >
-                <h3 style={{ marginTop: 0 }}>เลือกช่วงเวลาว่าง</h3>
+            {!isFinalized && (
+                <div
+                    style={{
+                        marginTop: 24,
+                        padding: 16,
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 12,
+                        background: "#ffffff",
+                    }}
+                >
+                    <h3 style={{ marginTop: 0 }}>เลือกช่วงเวลาว่าง</h3>
 
-                <div style={{ display: "grid", gap: 12, maxWidth: 360 }}>
-                    <div>
-                        <label>Date: </label>
-                        <input
-                            type="date"
-                            value={date}
-                            min={event.dateRange.start}
-                            max={event.dateRange.end}
-                            onChange={(e) => setDate(e.target.value)}
-                        />
-                    </div>
-
-                    <div>
-                        <label>Start Time: </label>
-                        <input
-                            type="time"
-                            value={startTime}
-                            min={event.timeRange.start}
-                            max={event.timeRange.end}
-                            onChange={(e) => setStartTime(e.target.value)}
-                        />
-                    </div>
-
-                    <div>
-                        <label>End Time: </label>
-                        <input
-                            type="time"
-                            value={endTime}
-                            min={event.timeRange.start}
-                            max={event.timeRange.end}
-                            onChange={(e) => setEndTime(e.target.value)}
-                        />
-                    </div>
-
-                    <div>
-                        <button onClick={handleAddSlot}>Add Time Slot</button>
-                    </div>
-                </div>
-
-                <div style={{ marginTop: 20 }}>
-                    <h4 style={{ marginBottom: 10 }}>ช่วงเวลาที่เลือก</h4>
-
-                    {slots.length === 0 ? (
-                        <p style={{ color: "#6b7280" }}>ยังไม่มีช่วงเวลาที่เพิ่ม</p>
-                    ) : (
-                        <div style={{ display: "grid", gap: 10 }}>
-                            {slots.map((slot, index) => (
-                                <div
-                                    key={`${slot.date}-${slot.startTime}-${slot.endTime}-${index}`}
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: 8,
-                                        padding: 12,
-                                        background: "#f9fafb",
-                                    }}
-                                >
-                                    <div>
-                                        <strong>{slot.date}</strong> | {slot.startTime} - {slot.endTime}
-                                    </div>
-
-                                    <button onClick={() => handleRemoveSlot(index)}>Remove</button>
-                                </div>
-                            ))}
+                    <div style={{ display: "grid", gap: 12, maxWidth: 360 }}>
+                        <div>
+                            <label>Date: </label>
+                            <input
+                                type="date"
+                                value={date}
+                                min={event.dateRange.start}
+                                max={event.dateRange.end}
+                                onChange={(e) => setDate(e.target.value)}
+                            />
                         </div>
-                    )}
-                </div>
 
-                <div style={{ marginTop: 16 }}>
-                    <button onClick={handleSubmitAvailability}>Submit Availability</button>
+                        <div>
+                            <label>Start Time: </label>
+                            <input
+                                type="time"
+                                value={startTime}
+                                min={event.timeRange.start}
+                                max={event.timeRange.end}
+                                onChange={(e) => setStartTime(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label>End Time: </label>
+                            <input
+                                type="time"
+                                value={endTime}
+                                min={event.timeRange.start}
+                                max={event.timeRange.end}
+                                onChange={(e) => setEndTime(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <button onClick={handleAddSlot}>Add Time Slot</button>
+                        </div>
+                    </div>
+
+                    <div style={{ marginTop: 20 }}>
+                        <h4 style={{ marginBottom: 10 }}>ช่วงเวลาที่เลือก</h4>
+
+                        {slots.length === 0 ? (
+                            <p style={{ color: "#6b7280" }}>ยังไม่มีช่วงเวลาที่เพิ่ม</p>
+                        ) : (
+                            <div style={{ display: "grid", gap: 10 }}>
+                                {slots.map((slot, index) => (
+                                    <div
+                                        key={`${slot.date}-${slot.startTime}-${slot.endTime}-${index}`}
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: 8,
+                                            padding: 12,
+                                            background: "#f9fafb",
+                                        }}
+                                    >
+                                        <div>
+                                            <strong>{slot.date}</strong> | {slot.startTime} - {slot.endTime}
+                                        </div>
+
+                                        <button onClick={() => handleRemoveSlot(index)}>Remove</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div style={{ marginTop: 16 }}>
+                        <button onClick={handleSubmitAvailability}>Submit Availability</button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div
                 style={{
@@ -373,7 +456,7 @@ export default function EventPage() {
                     background: "#ffffff",
                 }}
             >
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                     <h3 style={{ margin: 0 }}>Availability Overview</h3>
                     <button onClick={loadOverlap}>Load Heatmap Data</button>
                 </div>
@@ -395,18 +478,36 @@ export default function EventPage() {
                                         gap: 8,
                                     }}
                                 >
-                                    {items.map((item) => (
-                                        <div
-                                            key={`${item.date}-${item.time}`}
-                                            style={getCellStyle(item.count)}
-                                            title={`${item.time} ว่าง ${item.count} คน`}
-                                        >
-                                            <div>{item.time}</div>
-                                            <div style={{ fontSize: 12, marginTop: 4 }}>
-                                                {item.count} คน
+                                    {items.map((item) => {
+                                        const finalizeSlot = {
+                                            date: item.date,
+                                            startTime: item.time,
+                                            endTime: addMinutes(item.time, 15),
+                                        };
+
+                                        const selected =
+                                            selectedFinalizeSlot?.date === finalizeSlot.date &&
+                                            selectedFinalizeSlot?.startTime === finalizeSlot.startTime &&
+                                            selectedFinalizeSlot?.endTime === finalizeSlot.endTime;
+
+                                        return (
+                                            <div
+                                                key={`${item.date}-${item.time}`}
+                                                style={getCellStyle(item.count, selected)}
+                                                title={`${item.time} ว่าง ${item.count} คน`}
+                                                onClick={() => {
+                                                    if (isHost && !isFinalized) {
+                                                        setSelectedFinalizeSlot(finalizeSlot);
+                                                    }
+                                                }}
+                                            >
+                                                <div>{item.time}</div>
+                                                <div style={{ fontSize: 12, marginTop: 4 }}>
+                                                    {item.count} คน
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}
@@ -416,8 +517,42 @@ export default function EventPage() {
                 <div style={{ marginTop: 16, fontSize: 13, color: "#4b5563" }}>
                     <div>สีอ่อน = คนน้อยว่าง</div>
                     <div>สีเข้ม = คนว่างมาก</div>
+                    {isHost && !isFinalized && (
+                        <div style={{ marginTop: 6 }}>Host สามารถคลิกช่องใน heatmap เพื่อเลือกเวลาสำหรับ Finalize</div>
+                    )}
                 </div>
             </div>
+
+            {isHost && !isFinalized && (
+                <div
+                    style={{
+                        marginTop: 24,
+                        padding: 16,
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 12,
+                        background: "#ffffff",
+                    }}
+                >
+                    <h3 style={{ marginTop: 0 }}>Finalize Event</h3>
+
+                    {selectedFinalizeSlot ? (
+                        <div style={{ marginBottom: 16 }}>
+                            <p>
+                                <strong>วันที่:</strong> {selectedFinalizeSlot.date}
+                            </p>
+                            <p>
+                                <strong>เวลา:</strong> {selectedFinalizeSlot.startTime} - {selectedFinalizeSlot.endTime}
+                            </p>
+                        </div>
+                    ) : (
+                        <p style={{ color: "#6b7280" }}>
+                            ยังไม่ได้เลือกช่วงเวลาจาก heatmap
+                        </p>
+                    )}
+
+                    <button onClick={handleFinalize}>Finalize Meeting</button>
+                </div>
+            )}
         </div>
     );
 }

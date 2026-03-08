@@ -63,10 +63,26 @@ function calculateOverlap(availabilities: AvailabilityDoc[]) {
     }
   }
 
-  return Array.from(map.entries()).map(([key, count]) => {
-    const [date, time] = key.split("_");
-    return { date, time, count };
-  });
+  return Array.from(map.entries())
+    .map(([key, count]): { date: string; time: string; count: number } => {
+      const parts = key.split("_");
+
+      if (parts.length !== 2) {
+        throw new Error(`Invalid overlap key: ${key}`);
+      }
+
+      const date = parts[0]!;
+      const time = parts[1]!;
+
+      return { date, time, count };
+    })
+    .sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+
+      return a.time.localeCompare(b.time);
+    });
 }
 
 const server = serve({
@@ -363,6 +379,107 @@ const server = serve({
           );
         }
       },
+
+      async OPTIONS() {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin": "http://localhost:5173",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          },
+        });
+      },
+
+      async POST(req: Request & { params: { id: string } }) {
+        const pathname = new URL(req.url).pathname;
+
+        if (!pathname.endsWith("/finalize")) {
+          return jsonWithCors(
+            { ok: false, message: "Unsupported POST route" },
+            { status: 404 }
+          );
+        }
+
+        try {
+          const eventId = req.params.id;
+          const user = await getUserFromRequest(req);
+          const body = await req.json();
+
+          const date = body?.date;
+          const startTime = body?.startTime;
+          const endTime = body?.endTime;
+
+          if (!date || !startTime || !endTime) {
+            return jsonWithCors(
+              {
+                ok: false,
+                message: "date, startTime, endTime are required",
+              },
+              { status: 400 }
+            );
+          }
+
+          if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+            return jsonWithCors(
+              {
+                ok: false,
+                message: "startTime must be earlier than endTime",
+              },
+              { status: 400 }
+            );
+          }
+
+          const eventRef = db.collection("events").doc(eventId);
+          const eventDoc = await eventRef.get();
+
+          if (!eventDoc.exists) {
+            return jsonWithCors(
+              { ok: false, message: "Event not found" },
+              { status: 404 }
+            );
+          }
+
+          const eventData = eventDoc.data() as any;
+
+          if (eventData.hostId !== user.uid) {
+            return jsonWithCors(
+              { ok: false, message: "Only host can finalize this event" },
+              { status: 403 }
+            );
+          }
+
+          await eventRef.update({
+            status: "finalized",
+            finalizedSlot: {
+              date,
+              startTime,
+              endTime,
+            },
+            finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          const updatedDoc = await eventRef.get();
+
+          return jsonWithCors({
+            ok: true,
+            message: "Event finalized successfully",
+            event: updatedDoc.data(),
+          });
+        } catch (error) {
+          console.error("finalize error:", error);
+
+          return jsonWithCors(
+            {
+              ok: false,
+              message: "Failed to finalize event",
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+            { status: 500 }
+          );
+        }
+      },
     },
 
     "/api/events/:id/overlap": {
@@ -375,7 +492,10 @@ const server = serve({
             .where("eventId", "==", eventId)
             .get();
 
-          const availabilities = snapshot.docs.map((doc) => doc.data()) as AvailabilityDoc[];
+          const availabilities = snapshot.docs.map(
+            (doc) => doc.data()
+          ) as AvailabilityDoc[];
+
           const overlap = calculateOverlap(availabilities);
 
           return jsonWithCors({
@@ -387,6 +507,100 @@ const server = serve({
             {
               ok: false,
               message: "Failed to calculate overlap",
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+            { status: 500 }
+          );
+        }
+      },
+    },
+
+    "/api/events/:id/finalize": {
+      async OPTIONS() {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin": "http://localhost:5173",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+          },
+        });
+      },
+
+      async POST(req: Request & { params: { id: string } }) {
+        try {
+          const eventId = req.params.id;
+          const user = await getUserFromRequest(req);
+          const body = await req.json();
+
+          const date = body?.date;
+          const startTime = body?.startTime;
+          const endTime = body?.endTime;
+
+          if (!date || !startTime || !endTime) {
+            return jsonWithCors(
+              {
+                ok: false,
+                message: "date, startTime, endTime are required",
+              },
+              { status: 400 }
+            );
+          }
+
+          if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+            return jsonWithCors(
+              {
+                ok: false,
+                message: "startTime must be earlier than endTime",
+              },
+              { status: 400 }
+            );
+          }
+
+          const eventRef = db.collection("events").doc(eventId);
+          const eventDoc = await eventRef.get();
+
+          if (!eventDoc.exists) {
+            return jsonWithCors(
+              { ok: false, message: "Event not found" },
+              { status: 404 }
+            );
+          }
+
+          const eventData = eventDoc.data() as any;
+
+          if (eventData.hostId !== user.uid) {
+            return jsonWithCors(
+              { ok: false, message: "Only host can finalize this event" },
+              { status: 403 }
+            );
+          }
+
+          await eventRef.update({
+            status: "finalized",
+            finalizedSlot: {
+              date,
+              startTime,
+              endTime,
+            },
+            finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          const updatedDoc = await eventRef.get();
+
+          return jsonWithCors({
+            ok: true,
+            message: "Event finalized successfully",
+            event: updatedDoc.data(),
+          });
+        } catch (error) {
+          console.error("POST /api/events/:id/finalize error:", error);
+
+          return jsonWithCors(
+            {
+              ok: false,
+              message: "Failed to finalize event",
               error: error instanceof Error ? error.message : "Unknown error",
             },
             { status: 500 }
