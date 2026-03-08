@@ -1,91 +1,159 @@
+import { useState } from "react";
 import { signInWithPopup } from "firebase/auth";
+import { Link } from "react-router-dom";
 import { auth, provider } from "../firebase";
-import { loginWithGoogle } from "../services/api";
-import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { createEvent, loginWithGoogle } from "../services/api";
+import AppShell from "../components/layout/AppShell";
+import type { EventData, UserInfo } from "../types";
 
 export default function HomePage() {
-    const { userInfo, loading } = useAuth();
-    const navigate = useNavigate();
-    const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-    useEffect(() => {
-        if (!loading && userInfo) {
-            navigate("/dashboard");
-        }
-    }, [userInfo, loading, navigate]);
+    const [token, setToken] = useState("");
+    const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+    const [createdEvent, setCreatedEvent] = useState<EventData | null>(null);
 
     const handleLogin = async () => {
-        setIsLoggingIn(true);
         try {
             const result = await signInWithPopup(auth, provider);
             const idToken = await result.user.getIdToken();
-            await loginWithGoogle(idToken);
-            // After successful login, the AuthContext listener will update state 
-            // and the useEffect will trigger navigation to /dashboard
+            const data = await loginWithGoogle(idToken);
+
+            setToken(idToken);
+            setUserInfo(data.user);
+            alert("เข้าสู่ระบบสำเร็จ");
         } catch (error) {
             console.error(error);
             alert("เข้าสู่ระบบไม่สำเร็จ");
-            setIsLoggingIn(false);
         }
     };
 
-    if (loading) {
-        return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>Loading...</div>;
-    }
+    const handleCreateEvent = async () => {
+        try {
+            if (!token) {
+                alert("กรุณา login ก่อน");
+                return;
+            }
+
+            const data = await createEvent(token, {
+                title: "ประชุมโปรเจกต์ MeetSync",
+                dateRange: {
+                    start: "2026-03-10",
+                    end: "2026-03-12",
+                },
+                timeRange: {
+                    start: "09:00",
+                    end: "18:00",
+                },
+                location: "Google Meet",
+            });
+
+            setCreatedEvent(data.event);
+            alert("สร้างอีเวนต์สำเร็จ");
+        } catch (error) {
+            console.error(error);
+            alert("สร้างอีเวนต์ไม่สำเร็จ");
+        }
+    };
 
     return (
-        <div className="app-shell">
-            <header className="topbar">
-                <div className="container topbar-inner">
-                    <div className="brand">
-                        <div className="brand-badge">✨</div>
-                        <div>MeetSync</div>
-                    </div>
+        <AppShell>
+            <section className="hero">
+                <div className="glass-card hero-main">
+                    <div className="eyebrow">🌼 นัดหมายแบบอบอุ่น ใช้งานง่าย</div>
 
-                    <div className="nav-chips">
-                        <button className="chip" onClick={handleLogin} disabled={isLoggingIn} style={{ cursor: 'pointer', background: 'transparent', border: '1px solid currentColor', fontFamily: 'inherit', fontSize: 'inherit', color: 'inherit' }}>
-                            {isLoggingIn ? "Logging in..." : "Login"}
+                    <h1 className="page-title">จัดเวลานัดกลุ่มให้เร็วขึ้นและชัดเจนขึ้น</h1>
+
+                    <p className="subtitle">
+                        MeetSync เป็นแอพจัดเวลานัดหมายกลุ่มที่ช่วยให้ Host สร้าง event,
+                        ให้ Guest ลงเวลาว่าง, ดู heatmap และ finalize เวลานัดหมายได้ใน flow เดียว
+                    </p>
+
+                    <div className="hero-actions">
+                        <button className="btn btn-primary" onClick={handleLogin}>
+                            Sign in with Google
+                        </button>
+
+                        <Link to="/create" className="btn btn-secondary" style={{ textDecoration: "none" }}>
+                            Go to Create Event
+                        </Link>
+
+                        <button className="btn btn-dark" onClick={handleCreateEvent} disabled={!token}>
+                            Quick Create Test Event
                         </button>
                     </div>
-                </div>
-            </header>
 
-            <main className="container">
-                <section className="hero">
-                    <div className="glass-card hero-main" style={{ margin: '0 auto', maxWidth: '800px', width: '100%' }}>
-                        <div className="eyebrow">🌼 นัดหมายแบบอบอุ่น ดูง่าย ใช้งานง่าย</div>
-
-                        <h1 className="page-title">หาเวลาที่ทุกคนว่างตรงกัน ได้อย่างง่ายดาย</h1>
-
-                        <p className="subtitle">
-                            MeetSync เป็นแอปช่วยจัดการเวลานัดหมายกลุ่ม โหวตเวลาว่าง ดูผลรวมแบบ Heatmap และตัดสินใจเลือกเวลาที่เหมาะสมที่สุดได้ทันที
-                        </p>
-
-                        <div className="hero-actions" style={{ justifyContent: 'center' }}>
-                            <button className="btn btn-primary" onClick={handleLogin} disabled={isLoggingIn}>
-                                {isLoggingIn ? "Signing in..." : "Sign in with Google"}
-                            </button>
+                    <div className="stats">
+                        <div className="stat">
+                            <strong>Login</strong>
+                            <span className="muted">เข้าสู่ระบบด้วย Google</span>
                         </div>
-
-                        <div className="stats" style={{ justifyContent: 'center' }}>
-                            <div className="stat">
-                                <strong>Google Login</strong>
-                                <span className="muted">เข้าใช้งานได้ทันที</span>
-                            </div>
-                            <div className="stat">
-                                <strong>Heatmap</strong>
-                                <span className="muted">ดูเวลาว่างรวมของกลุ่ม</span>
-                            </div>
-                            <div className="stat">
-                                <strong>Finalize</strong>
-                                <span className="muted">สรุปเวลานัดหมาย</span>
-                            </div>
+                        <div className="stat">
+                            <strong>Availability</strong>
+                            <span className="muted">เลือกเวลาว่างด้วย drag grid</span>
+                        </div>
+                        <div className="stat">
+                            <strong>Finalize</strong>
+                            <span className="muted">Host ยืนยันเวลานัดสุดท้ายได้</span>
                         </div>
                     </div>
-                </section>
-            </main>
-        </div>
+                </div>
+
+                <div className="glass-card hero-side">
+                    <div className="mini-panel">
+                        <h3>เริ่มต้นเร็ว</h3>
+                        <p>ถ้าจะสร้าง event จริง แนะนำให้ไปหน้า Create Event โดยตรง</p>
+                    </div>
+
+                    <div className="mini-panel">
+                        <h3>โครงสร้างแอพ</h3>
+                        <p>แยกหน้า Home, Create, Event, Submitted และ Not Found ชัดเจน</p>
+                    </div>
+
+                    <div className="mini-panel">
+                        <h3>สถานะผู้ใช้</h3>
+                        <p>{token ? "เข้าสู่ระบบแล้ว" : "ยังไม่ได้เข้าสู่ระบบ"}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section className="cards-2 page-section">
+                <article className="form-card">
+                    <div className="page-header">
+                        <h2>ข้อมูลผู้ใช้</h2>
+                        <p>แสดงข้อมูลหลัง login สำเร็จ</p>
+                    </div>
+
+                    {userInfo ? (
+                        <div className="code-card">
+                            <pre>{JSON.stringify(userInfo, null, 2)}</pre>
+                        </div>
+                    ) : (
+                        <div className="info-box">ยังไม่มีข้อมูลผู้ใช้ใน session นี้</div>
+                    )}
+                </article>
+
+                <article className="list-card">
+                    <div className="page-header">
+                        <h2>Event ล่าสุด</h2>
+                        <p>แสดงอีเวนต์ที่เพิ่งสร้างล่าสุด</p>
+                    </div>
+
+                    {createdEvent ? (
+                        <div className="link-card">
+                            <p>
+                                <strong>Event ID:</strong> {createdEvent.eventId}
+                            </p>
+                            <p>
+                                <strong>Share link:</strong>
+                            </p>
+                            <a href={createdEvent.shareLink} target="_blank" rel="noreferrer">
+                                {createdEvent.shareLink}
+                            </a>
+                        </div>
+                    ) : (
+                        <div className="info-box">ยังไม่มี event ที่สร้างในรอบนี้</div>
+                    )}
+                </article>
+            </section>
+        </AppShell>
     );
 }

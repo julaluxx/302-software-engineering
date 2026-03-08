@@ -1,121 +1,236 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AvailabilitySlot, EventData } from "../types";
 
-export interface AvailabilityPickerProps {
+type Props = {
     event: EventData;
-    onSlotsChange: Dispatch<SetStateAction<AvailabilitySlot[]>>;
-}
+    onSlotsChange: (slots: AvailabilitySlot[]) => void;
+};
 
 function toMinutes(time: string) {
     const [h, m] = time.split(":").map(Number);
     return h * 60 + m;
 }
 
-export default function AvailabilityPicker({ event, onSlotsChange }: AvailabilityPickerProps) {
-    const [date, setDate] = useState("");
-    const [startTime, setStartTime] = useState("");
-    const [endTime, setEndTime] = useState("");
-    const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+function minutesToTime(minutes: number) {
+    const h = String(Math.floor(minutes / 60)).padStart(2, "0");
+    const m = String(minutes % 60).padStart(2, "0");
+    return `${h}:${m}`;
+}
+
+function formatDateLabel(date: string) {
+    const d = new Date(date);
+    return d.toLocaleDateString("th-TH", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+    });
+}
+
+function getDatesInRange(start: string, end: string) {
+    const result: string[] = [];
+    const current = new Date(start);
+    const last = new Date(end);
+
+    while (current <= last) {
+        result.push(current.toISOString().slice(0, 10));
+        current.setDate(current.getDate() + 1);
+    }
+
+    return result;
+}
+
+function buildTimeSlots(startTime: string, endTime: string, step = 15) {
+    const start = toMinutes(startTime);
+    const end = toMinutes(endTime);
+
+    const result: string[] = [];
+    for (let t = start; t < end; t += step) {
+        result.push(minutesToTime(t));
+    }
+
+    return result;
+}
+
+function keyOf(date: string, time: string) {
+    return `${date}_${time}`;
+}
+
+function selectedKeysToRanges(
+    selectedKeys: Set<string>,
+    dates: string[],
+    times: string[]
+): AvailabilitySlot[] {
+    const ranges: AvailabilitySlot[] = [];
+
+    for (const date of dates) {
+        let currentStart: string | null = null;
+        let previousTime: string | null = null;
+
+        for (let i = 0; i < times.length; i++) {
+            const time = times[i];
+            const isSelected = selectedKeys.has(keyOf(date, time));
+
+            if (isSelected && currentStart === null) {
+                currentStart = time;
+            }
+
+            if (isSelected) {
+                previousTime = time;
+            }
+
+            const nextTime = times[i + 1];
+            const nextSelected = nextTime
+                ? selectedKeys.has(keyOf(date, nextTime))
+                : false;
+
+            if (isSelected && !nextSelected && currentStart && previousTime) {
+                const endTime = minutesToTime(toMinutes(previousTime) + 15);
+
+                ranges.push({
+                    date,
+                    startTime: currentStart,
+                    endTime,
+                });
+
+                currentStart = null;
+                previousTime = null;
+            }
+        }
+    }
+
+    return ranges;
+}
+
+export default function AvailabilityPicker({ event, onSlotsChange }: Props) {
+    const dates = useMemo(
+        () => getDatesInRange(event.dateRange.start, event.dateRange.end),
+        [event.dateRange.start, event.dateRange.end]
+    );
+
+    const times = useMemo(
+        () => buildTimeSlots(event.timeRange.start, event.timeRange.end, 15),
+        [event.timeRange.start, event.timeRange.end]
+    );
+
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragMode, setDragMode] = useState<"add" | "remove" | null>(null);
 
     useEffect(() => {
-        onSlotsChange(slots);
-    }, [slots, onSlotsChange]);
-
-    const handleAddSlot = () => {
-        if (!date || !startTime || !endTime) {
-            alert("กรุณาเลือกวันและเวลาให้ครบ");
-            return;
-        }
-
-        if (toMinutes(startTime) >= toMinutes(endTime)) {
-            alert("เวลาเริ่มต้องน้อยกว่าเวลาจบ");
-            return;
-        }
-
-        if (date < event.dateRange.start || date > event.dateRange.end) {
-            alert("วันที่ต้องอยู่ในช่วงวันของ event");
-            return;
-        }
-
-        if (
-            toMinutes(startTime) < toMinutes(event.timeRange.start) ||
-            toMinutes(endTime) > toMinutes(event.timeRange.end)
-        ) {
-            alert("เวลาที่เลือกต้องอยู่ในช่วงเวลาของ event");
-            return;
-        }
-
-        const newSlot: AvailabilitySlot = {
-            date,
-            startTime,
-            endTime,
+        const handlePointerUp = () => {
+            setIsDragging(false);
+            setDragMode(null);
         };
 
-        setSlots((prev) => [...prev, newSlot]);
-        setStartTime("");
-        setEndTime("");
+        window.addEventListener("pointerup", handlePointerUp);
+        return () => window.removeEventListener("pointerup", handlePointerUp);
+    }, []);
+
+    useEffect(() => {
+        const ranges = selectedKeysToRanges(selectedKeys, dates, times);
+        onSlotsChange(ranges);
+    }, [selectedKeys, dates, times, onSlotsChange]);
+
+    const applyCell = (date: string, time: string, mode: "add" | "remove") => {
+        const key = keyOf(date, time);
+
+        setSelectedKeys((prev) => {
+            const next = new Set(prev);
+
+            if (mode === "add") {
+                next.add(key);
+            } else {
+                next.delete(key);
+            }
+
+            return next;
+        });
     };
 
-    const handleRemoveSlot = (indexToRemove: number) => {
-        setSlots((prev) => prev.filter((_, index) => index !== indexToRemove));
+    const handlePointerDown = (date: string, time: string) => {
+        const cellKey = keyOf(date, time);
+        const alreadySelected = selectedKeys.has(cellKey);
+        const nextMode: "add" | "remove" = alreadySelected ? "remove" : "add";
+
+        setIsDragging(true);
+        setDragMode(nextMode);
+        applyCell(date, time, nextMode);
     };
+
+    const handlePointerEnter = (date: string, time: string) => {
+        if (!isDragging || !dragMode) return;
+        applyCell(date, time, dragMode);
+    };
+
+    const clearAll = () => {
+        setSelectedKeys(new Set());
+    };
+
+    const selectedRanges = selectedKeysToRanges(selectedKeys, dates, times);
 
     return (
         <div className="availability-picker">
-            <div className="form-stack" style={{ marginTop: 18 }}>
+            <div className="picker-toolbar">
                 <div>
-                    <label className="label">Date</label>
-                    <input
-                        className="input"
-                        type="date"
-                        value={date}
-                        min={event.dateRange.start}
-                        max={event.dateRange.end}
-                        onChange={(e) => setDate(e.target.value)}
-                    />
+                    <h3>เลือกเวลาว่างด้วยการลาก</h3>
+                    <p className="muted">
+                        ลากบนตารางเพื่อเลือกช่วงเวลาว่าง ถ้าลากบนช่องที่เลือกแล้ว ระบบจะลบช่วงนั้นออก
+                    </p>
                 </div>
 
-                <div className="form-grid">
-                    <div>
-                        <label className="label">Start Time</label>
-                        <input
-                            className="input"
-                            type="time"
-                            value={startTime}
-                            min={event.timeRange.start}
-                            max={event.timeRange.end}
-                            onChange={(e) => setStartTime(e.target.value)}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="label">End Time</label>
-                        <input
-                            className="input"
-                            type="time"
-                            value={endTime}
-                            min={event.timeRange.start}
-                            max={event.timeRange.end}
-                            onChange={(e) => setEndTime(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <div className="hero-actions" style={{ marginTop: 0 }}>
-                    <button className="btn btn-secondary" onClick={handleAddSlot}>
-                        Add Time Slot
+                <div className="picker-toolbar-actions">
+                    <button className="btn btn-secondary" onClick={clearAll}>
+                        Clear All
                     </button>
                 </div>
             </div>
 
-            <div style={{ marginTop: 20 }}>
-                <h3>ช่วงเวลาที่เลือก</h3>
+            <div className="picker-grid-shell">
+                <div
+                    className="picker-grid"
+                    style={{
+                        gridTemplateColumns: `110px repeat(${dates.length}, minmax(140px, 1fr))`,
+                    }}
+                >
+                    <div className="picker-corner">เวลา</div>
 
-                {slots.length === 0 ? (
-                    <p className="muted">ยังไม่มีช่วงเวลาที่เพิ่ม</p>
+                    {dates.map((date) => (
+                        <div key={date} className="picker-date-header">
+                            <div>{formatDateLabel(date)}</div>
+                            <small>{date}</small>
+                        </div>
+                    ))}
+
+                    {times.map((time) => (
+                        <div key={`row-${time}`} style={{ display: "contents" }}>
+                            <div className="picker-time-label">{time}</div>
+
+                            {dates.map((date) => {
+                                const key = keyOf(date, time);
+                                const selected = selectedKeys.has(key);
+
+                                return (
+                                    <div
+                                        key={key}
+                                        className={`picker-cell ${selected ? "selected" : ""}`}
+                                        onPointerDown={() => handlePointerDown(date, time)}
+                                        onPointerEnter={() => handlePointerEnter(date, time)}
+                                    />
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="selected-ranges-box">
+                <h4>ช่วงเวลาที่เลือก</h4>
+
+                {selectedRanges.length === 0 ? (
+                    <p className="muted">ยังไม่ได้เลือกเวลาว่าง</p>
                 ) : (
                     <div className="slot-list">
-                        {slots.map((slot, index) => (
+                        {selectedRanges.map((slot, index) => (
                             <div
                                 key={`${slot.date}-${slot.startTime}-${slot.endTime}-${index}`}
                                 className="slot-item"
@@ -123,12 +238,6 @@ export default function AvailabilityPicker({ event, onSlotsChange }: Availabilit
                                 <div>
                                     <strong>{slot.date}</strong> | {slot.startTime} - {slot.endTime}
                                 </div>
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={() => handleRemoveSlot(index)}
-                                >
-                                    Remove
-                                </button>
                             </div>
                         ))}
                     </div>
