@@ -196,17 +196,58 @@ const server = serve({
         try {
           const user = await getUserFromRequest(req);
           
-          const snapshot = await db
+          // 1. Fetch hosted events
+          const hostedSnapshot = await db
             .collection("events")
             .where("hostId", "==", user.uid)
-            .orderBy("createdAt", "desc")
             .get();
 
-          const events = snapshot.docs.map((doc) => doc.data());
+          const hostedEvents = hostedSnapshot.docs.map((doc) => doc.data());
+          const eventIds = new Set(hostedEvents.map((e) => e.eventId));
+
+          // 2. Fetch participated events via availability
+          const availSnapshot = await db
+            .collection("availability")
+            .where("userId", "==", user.uid)
+            .get();
+
+          const availDocs = availSnapshot.docs.map((doc) => doc.data());
+          const participatedEventIds = new Set(availDocs.map(a => a.eventId));
+
+          // 3. Keep only eventIds not already in hostedEvents
+          const newEventIds = Array.from(participatedEventIds).filter(id => !eventIds.has(id));
+
+          // 4. Fetch the events for these new IDs mapping over them (Firestore 'in' query has 10 item limit limit)
+          const participatedEvents = [];
+          if (newEventIds.length > 0) {
+            // chunk into batches of 10 for 'in' query if needed, or fetch individually
+            const chunks = [];
+            for (let i = 0; i < newEventIds.length; i += 10) {
+              chunks.push(newEventIds.slice(i, i + 10));
+            }
+
+            for (const chunk of chunks) {
+              const partSnapshot = await db
+                .collection("events")
+                .where("eventId", "in", chunk)
+                .get();
+              
+              participatedEvents.push(...partSnapshot.docs.map(doc => doc.data()));
+            }
+          }
+
+          // 5. Combine and sort by createdAt desc
+          const allEvents = [...hostedEvents, ...participatedEvents];
+          allEvents.sort((a, b) => {
+             // Handle case where createdAt might be a server timestamp object
+             const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+             const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+             return timeB - timeA;
+          });
 
           return jsonWithCors({
             ok: true,
-            events,
+            events: allEvents,
           });
         } catch (error) {
           console.error("GET /api/events error:", error);

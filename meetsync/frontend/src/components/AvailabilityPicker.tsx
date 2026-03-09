@@ -147,7 +147,9 @@ export default function AvailabilityPicker({ event, onSlotsChange }: Props) {
         });
     };
 
-    const handlePointerDown = (date: string, time: string) => {
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, date: string, time: string) => {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        
         const cellKey = keyOf(date, time);
         const alreadySelected = selectedKeys.has(cellKey);
         const nextMode: "add" | "remove" = alreadySelected ? "remove" : "add";
@@ -171,12 +173,6 @@ export default function AvailabilityPicker({ event, onSlotsChange }: Props) {
     return (
         <div className="availability-picker">
             <div className="picker-toolbar">
-                <div>
-                    <h3>เลือกเวลาว่างด้วยการลาก</h3>
-                    <p className="muted">
-                        ลากบนตารางเพื่อเลือกช่วงเวลาว่าง ถ้าลากบนช่องที่เลือกแล้ว ระบบจะลบช่วงนั้นออก
-                    </p>
-                </div>
 
                 <div className="picker-toolbar-actions">
                     <button className="btn btn-secondary" onClick={clearAll}>
@@ -190,6 +186,8 @@ export default function AvailabilityPicker({ event, onSlotsChange }: Props) {
                     className="picker-grid"
                     style={{
                         gridTemplateColumns: `110px repeat(${dates.length}, minmax(140px, 1fr))`,
+                        userSelect: "none",
+                        touchAction: "none",
                     }}
                 >
                     <div className="picker-corner">เวลา</div>
@@ -213,7 +211,7 @@ export default function AvailabilityPicker({ event, onSlotsChange }: Props) {
                                     <div
                                         key={key}
                                         className={`picker-cell ${selected ? "selected" : ""}`}
-                                        onPointerDown={() => handlePointerDown(date, time)}
+                                        onPointerDown={(e) => handlePointerDown(e, date, time)}
                                         onPointerEnter={() => handlePointerEnter(date, time)}
                                     />
                                 );

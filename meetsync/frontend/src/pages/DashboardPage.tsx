@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
 import { getMyEvents } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
+import AppShell from "../components/layout/AppShell";
 import type { EventData } from "../types";
 
 export default function DashboardPage() {
@@ -36,44 +35,17 @@ export default function DashboardPage() {
         }
     }, [userInfo, token, loading, navigate]);
 
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            navigate("/");
-        } catch (error) {
-            console.error("Logout failed", error);
-        }
-    };
-
     if (loading) {
         return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>Loading...</div>;
     }
 
     if (!userInfo) {
-        return null; // Will redirect in useEffect
+        return null; 
     }
 
     return (
-        <div className="app-shell">
-            <header className="topbar">
-                <div className="container topbar-inner">
-                    <div className="brand" onClick={() => navigate("/dashboard")} style={{ cursor: "pointer" }}>
-                        <div className="brand-badge">✨</div>
-                        <div>MeetSync</div>
-                    </div>
-
-                    <div className="nav-chips">
-                        <div className="chip user-chip" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>{userInfo.name.split(' ')[0]}</span>
-                        </div>
-                        <button className="chip btn-logout" onClick={handleLogout} style={{ cursor: 'pointer', background: 'transparent', border: '1px solid currentColor', fontFamily: 'inherit', fontSize: 'inherit', color: 'inherit' }}>
-                            Logout
-                        </button>
-                    </div>
-                </div>
-            </header>
-
-            <main className="container" style={{ padding: '2rem 1rem' }}>
+        <AppShell>
+            <section className="page-section" style={{ padding: '2rem 1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                     <h2>แดชบอร์ด (อีเวนต์ของคุณ)</h2>
                     <button className="btn btn-primary" onClick={() => navigate("/create")}>
@@ -147,7 +119,7 @@ export default function DashboardPage() {
                         ))}
                     </div>
                 )}
-            </main>
-        </div>
+            </section>
+        </AppShell>
     );
 }

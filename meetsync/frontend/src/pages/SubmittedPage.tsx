@@ -15,7 +15,7 @@ export default function SubmittedPage() {
                         </p>
                     </div>
 
-                    <div className="hero-actions">
+                    <div className="hero-actions justify-center">
                         <Link to={`/event/${id}`} className="btn btn-primary" style={{ textDecoration: "none" }}>
                             กลับไปหน้า Event
                         </Link>

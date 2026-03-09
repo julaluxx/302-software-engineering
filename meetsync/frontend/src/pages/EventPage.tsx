@@ -11,6 +11,7 @@ import {
     loginWithGoogle,
     submitAvailability,
 } from "../services/api";
+import AppShell from "../components/layout/AppShell";
 import type {
     AvailabilitySlot,
     EventData,
@@ -134,34 +135,12 @@ export default function EventPage() {
     const isFinalized = event.status === "finalized";
 
     return (
-        <div className="app-shell">
-            <header className="topbar">
-                <div className="container topbar-inner">
-                    <div className="brand">
-                        <div className="brand-badge">✨</div>
-                        <div>MeetSync</div>
-                    </div>
-
-                    <div className="nav-chips">
-                        <div className="chip">Event</div>
-                        <div className="chip">Availability</div>
-                        <div className="chip">Heatmap</div>
-                        <div className="chip">Finalize</div>
-                    </div>
-                </div>
-            </header>
-
-            <main className="container">
+        <AppShell>
+            <section className="page-section">
                 <section className="hero">
                     <div className="glass-card hero-main">
-                        <div className="eyebrow">🗓️ Smart Group Scheduling</div>
 
                         <h1 className="page-title">{event.title}</h1>
-
-                        <p className="subtitle">
-                            เลือกเวลาว่างของคุณด้วยการลากบนตารางเวลา แล้วให้ระบบสรุปภาพรวมออกมาเป็น
-                            Heatmap เพื่อช่วยให้ Host ตัดสินใจได้เร็วขึ้น
-                        </p>
 
                         <div className="stats">
                             <div className="stat">
@@ -178,23 +157,6 @@ export default function EventPage() {
                                 <strong>{event.location}</strong>
                                 <span className="muted">สถานที่</span>
                             </div>
-                        </div>
-                    </div>
-
-                    <div className="glass-card hero-side">
-                        <div className="mini-panel">
-                            <h3>วิธีใช้งาน</h3>
-                            <p>เข้าสู่ระบบ แล้วลากบน grid เพื่อเลือกช่วงเวลาว่างของคุณได้ทันที</p>
-                        </div>
-
-                        <div className="mini-panel">
-                            <h3>สำหรับ Host</h3>
-                            <p>Host สามารถเปิด heatmap ดูช่วงที่คนว่างตรงกันมากที่สุด และ finalize ได้</p>
-                        </div>
-
-                        <div className="mini-panel">
-                            <h3>สำหรับ Guest</h3>
-                            <p>Guest ไม่ต้องพิมพ์เวลาเองอีกต่อไป แค่ลากเลือกบนตารางเหมือนแอพจริง</p>
                         </div>
                     </div>
                 </section>
@@ -224,16 +186,6 @@ export default function EventPage() {
                             </p>
                         </div>
 
-                        <div className="hero-actions">
-                            <button className="btn btn-primary" onClick={handleLogin}>
-                                Guest Login with Google
-                            </button>
-
-                            <button className="btn btn-dark" onClick={handleSubmitAvailability}>
-                                Submit Availability
-                            </button>
-                        </div>
-
                         {userInfo && (
                             <div className="code-card">
                                 <pre>{JSON.stringify(userInfo, null, 2)}</pre>
@@ -249,14 +201,7 @@ export default function EventPage() {
 
                     <article className="heatmap-card">
                         <div className="page-header">
-                            <h2>Availability Overview</h2>
-                            <p>โหลดข้อมูล overlap เพื่อดูภาพรวมว่าช่วงเวลาใดมีคนว่างตรงกันมากที่สุด</p>
-                        </div>
-
-                        <div className="heatmap-actions">
-                            <button className="btn btn-primary" onClick={handleLoadOverlap}>
-                                Load Heatmap Data
-                            </button>
+                            <h2>Overview</h2>
                         </div>
 
                         <HeatmapGrid
@@ -313,7 +258,7 @@ export default function EventPage() {
                 <div className="footer-note">
                     MeetSync Event Page — Drag to select availability
                 </div>
-            </main>
-        </div>
+            </section>
+        </AppShell>
     );
 }
