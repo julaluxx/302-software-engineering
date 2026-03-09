@@ -198,6 +198,10 @@ input {
   transform: translateY(-1px);
 }
 
+.justify-center {
+  justify-content: center;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, var(--primary), #ffe48f);
   color: #4f3b00;

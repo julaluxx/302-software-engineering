@@ -59,11 +59,6 @@ export default function CreateEventPage() {
                         title="Create Event"
                         description="สร้างอีเวนต์ใหม่โดยกำหนดชื่อ ช่วงวันที่ ช่วงเวลา และสถานที่"
                     >
-                        <div className="hero-actions" style={{ marginTop: 0 }}>
-                            <button className="btn btn-secondary" onClick={handleLogin}>
-                                Sign in with Google
-                            </button>
-                        </div>
 
                         {userInfo && (
                             <div className="code-card">
@@ -76,7 +71,7 @@ export default function CreateEventPage() {
                         </div>
                     </SectionCard>
 
-                    <SectionCard
+                    {/* <SectionCard
                         title="Event Preview"
                         description="หลังสร้างเสร็จ ระบบจะแสดงลิงก์สำหรับแชร์ให้ผู้เข้าร่วม"
                     >
@@ -104,7 +99,7 @@ export default function CreateEventPage() {
                         ) : (
                             <div className="info-box">ยังไม่มี event ที่สร้างในรอบนี้</div>
                         )}
-                    </SectionCard>
+                    </SectionCard> */}
                 </div>
             </section>
         </AppShell>

@@ -115,9 +115,9 @@ export default function CreateEventForm({ onSubmit }: Props) {
                 />
             </div>
 
-            <div className="hero-actions">
+            <div className="hero-actions justify-center">
                 <button type="submit" className="btn btn-primary">
-                    Create Event
+                   Create Event
                 </button>
             </div>
         </form>
