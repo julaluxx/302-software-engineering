@@ -10,8 +10,7 @@ export default function Topbar() {
                 </Link>
 
                 <nav className="nav-chips">
-                    <Link to="/" className="chip chip-link">Home</Link>
-                    {/* <Link to="/create" className="chip chip-link">Create Event</Link> */}
+                    <Link to="/" className="chip chip-link">Login with Google</Link>
                 </nav>
             </div>
         </header>
